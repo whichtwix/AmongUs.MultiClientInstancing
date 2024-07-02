@@ -46,7 +46,7 @@ public class Debugger : MonoBehaviour
             {
                 Keyboard_Joystick.CreatePlayer();
             }
-            GUILayout.Label("Hold F6 when pressing to bypass player limit.");
+            GUILayout.Label("Hold LftShft when pressing to bypass player limit.");
 
             if (GUILayout.Button("Remove Last Bot"))
                 InstanceControl.RemovePlayer((byte)InstanceControl.Clients.Count);

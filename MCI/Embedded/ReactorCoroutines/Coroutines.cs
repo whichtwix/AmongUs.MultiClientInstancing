@@ -28,14 +28,20 @@ public static class Coroutines
         }
     }
 
-    private static readonly ConditionalWeakTable<IEnumerator, Coroutine> _ourCoroutineStore = new();
+    internal static readonly ConditionalWeakTable<IEnumerator, Coroutine> _ourCoroutineStore = new();
+
+    internal static IEnumerator GenericRoutine(IEnumerator coroutine)
+    {
+        yield return coroutine;
+        _ourCoroutineStore.Remove(coroutine);
+    }
 
     [return: NotNullIfNotNull("coroutine")]
     public static IEnumerator? Start(IEnumerator? coroutine)
     {
         if (coroutine != null)
         {
-            _ourCoroutineStore.AddOrUpdate(coroutine, Component.Instance!.StartCoroutine(coroutine));
+            _ourCoroutineStore.AddOrUpdate(coroutine, Component.Instance!.StartCoroutine(GenericRoutine(coroutine)));
         }
 
         return coroutine;

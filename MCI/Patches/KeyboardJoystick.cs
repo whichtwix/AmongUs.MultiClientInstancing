@@ -49,7 +49,7 @@ public static class Keyboard_Joystick
     {
         ControllingFigure = PlayerControl.LocalPlayer.PlayerId;
 
-        if (PlayerControl.AllPlayerControls.Count == 15 && !Input.GetKeyDown(KeyCode.F6))
+        if (PlayerControl.AllPlayerControls.Count == 15 && !Input.GetKeyDown(KeyCode.LeftShift))
             return; //press f6 and f5 to bypass limit
 
         InstanceControl.CleanUpLoad();
