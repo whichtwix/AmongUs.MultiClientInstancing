@@ -1,6 +1,8 @@
 ﻿using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
+using Il2CppInterop.Runtime.Injection;
+using MCI.Components;
 using System;
 using UnityEngine.SceneManagement;
 
@@ -23,6 +25,8 @@ public partial class MCIPlugin : BasePlugin
     public static bool IKnowWhatImDoing { get; set; } = false;
     public static bool Persistence { get; set; } = true;
 
+    public static Debugger Debugger { get; set; } = null;
+
     public override void Load()
     {
         if (Singleton != null)
@@ -32,6 +36,11 @@ public partial class MCIPlugin : BasePlugin
         Harmony.PatchAll();
         UpdateChecker.CheckForUpdate();
         SubmergedCompatibility.Initialize();
+
+        ClassInjector.RegisterTypeInIl2Cpp<Debugger>();
+        ClassInjector.RegisterTypeInIl2Cpp<Embedded.ReactorCoroutines.Coroutines.Component>();
+        Debugger = this.AddComponent<Debugger>();
+        this.AddComponent<Embedded.ReactorCoroutines.Coroutines.Component>();
 
         SceneManager.add_sceneLoaded((Action<Scene, LoadSceneMode>)((scene, _) =>
         {

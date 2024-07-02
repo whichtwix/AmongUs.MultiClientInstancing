@@ -4,6 +4,8 @@ using System.Linq;
 using UnityEngine;
 using BepInEx.Unity.IL2CPP;
 using MCI.Patches;
+using System.Collections;
+using MCI.Embedded.ReactorCoroutines;
 
 namespace MCI;
 
@@ -11,14 +13,13 @@ public static class InstanceControl
 {
     internal static Dictionary<int, ClientData> Clients = new();
     internal static Dictionary<byte, int> PlayerClientIDs = new();
-    internal static Dictionary<byte, Vector2> SavedPositions = new();
     public static PlayerControl CurrentPlayerInPower { get; private set; }
 
     public static int AvailableId()
     {
         for (var i = 1; i < 128; i++)
         {
-            if (!Clients.ContainsKey(i) && PlayerControl.LocalPlayer.OwnerId != i)
+            if (!AmongUsClient.Instance.allClients.ToArray().Any(x => x.Id == i) && !Clients.ContainsKey(i) && PlayerControl.LocalPlayer.OwnerId != i)
                 return i;
         }
 
@@ -27,7 +28,9 @@ public static class InstanceControl
 
     public static void SwitchTo(byte playerId)
     {
-        SavedPositions[PlayerControl.LocalPlayer.PlayerId] = PlayerControl.LocalPlayer.transform.position;
+        var savedPlayer = PlayerControl.LocalPlayer;
+        var savedPosition = savedPlayer.transform.position;
+
         PlayerControl.LocalPlayer.NetTransform.RpcSnapTo(PlayerControl.LocalPlayer.transform.position);
         PlayerControl.LocalPlayer.moveable = false;
 
@@ -39,6 +42,8 @@ public static class InstanceControl
 
         if (newPlayer == null)
             return;
+
+        var newPosition = newPlayer.transform.position;
 
         PlayerControl.LocalPlayer = newPlayer;
         PlayerControl.LocalPlayer.lightSource = light;
@@ -79,11 +84,8 @@ public static class InstanceControl
         newPlayer.MyPhysics.inputHandler.enabled = true;
         CurrentPlayerInPower = newPlayer;
 
-        if (SavedPositions.TryGetValue(playerId, out var pos))
-            newPlayer.NetTransform.RpcSnapTo(pos);
-
-        if (SavedPositions.TryGetValue(savedId, out var pos2))
-            PlayerById(savedId).NetTransform.RpcSnapTo(pos2);
+        newPlayer.NetTransform.SnapTo(newPosition);
+        savedPlayer.NetTransform.SnapTo(savedPosition);
 
         if (MeetingHud.Instance)
         {
@@ -100,11 +102,15 @@ public static class InstanceControl
         {
             Clients.Clear();
             PlayerClientIDs.Clear();
-            SavedPositions.Clear();
         }
     }
 
-    public static PlayerControl CreatePlayerInstance()
+    public static void CreatePlayerInstance()
+    {
+        Coroutines.Start(_CreatePlayerInstanceEnumerator());
+    }
+
+    internal static IEnumerator _CreatePlayerInstanceEnumerator()
     {
         var sampleId = AvailableId();
         var sampleC = new ClientData(sampleId, $"Bot-{sampleId}", new()
@@ -113,8 +119,8 @@ public static class InstanceControl
             PlatformName = "Bot"
         }, 1, "", "robotmodeactivate");
 
-        AmongUsClient.Instance.CreatePlayer(sampleC);
-        AmongUsClient.Instance.allClients.Add(sampleC);
+        AmongUsClient.Instance.GetOrCreateClient(sampleC);
+        yield return AmongUsClient.Instance.CreatePlayer(sampleC);
 
         sampleC.Character.SetName(MCIPlugin.IKnowWhatImDoing ? $"Bot {{{sampleC.Character.PlayerId}:{sampleId}}}" : $"Bot {sampleC.Character.PlayerId}");
         sampleC.Character.SetSkin(HatManager.Instance.allSkins[Random.Range(0, HatManager.Instance.allSkins.Count)].ProdId, 0);
@@ -122,6 +128,7 @@ public static class InstanceControl
         sampleC.Character.SetPet(HatManager.Instance.allPets[Random.RandomRangeInt(0, HatManager.Instance.allPets.Count)].ProdId);
         sampleC.Character.SetColor(Random.Range(0, Palette.PlayerColors.Length));
         sampleC.Character.SetHat("hat_NoHat", 0);
+        sampleC.Character.SetVisor("visor_EmptyVisor", 0);
 
         Clients.Add(sampleId, sampleC);
         PlayerClientIDs.Add(sampleC.Character.PlayerId, sampleId);
@@ -134,7 +141,8 @@ public static class InstanceControl
         if (IL2CPPChainloader.Instance.Plugins.ContainsKey("me.eisbison.theotherroles"))
             sampleC.Character.GetComponent<DummyBehaviour>().enabled = true;
 
-        return sampleC.Character;
+        yield return sampleC.Character.MyPhysics.CoSpawnPlayer(LobbyBehaviour.Instance);
+        yield break;
     }
 
     public static void UpdateNames(string name)
@@ -158,7 +166,6 @@ public static class InstanceControl
         var clientId = Clients.FirstOrDefault(x => x.Value.Character.PlayerId == id).Key;
         Clients.Remove(clientId, out var outputData);
         PlayerClientIDs.Remove(id);
-        SavedPositions.Remove(id);
         AmongUsClient.Instance.RemovePlayer(clientId, DisconnectReasons.Custom);
         AmongUsClient.Instance.allClients.Remove(outputData);
     }
@@ -176,5 +183,7 @@ public static class InstanceControl
         __instance.SkipVoteButton.gameObject.SetActive(true);
         __instance.SkipVoteButton.AmDead = false;
         __instance.Glass.gameObject.SetActive(false);
+        if (CacheMeetingSprite.Cache)
+            __instance.Glass.sprite = CacheMeetingSprite.Cache;
     }
 }

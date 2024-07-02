@@ -9,6 +9,7 @@ public static class PingTracker_Update
     public static void Postfix(PingTracker __instance)
     {
         var position = __instance.GetComponent<AspectPosition>();
+        position.Alignment = AspectPosition.EdgeAlignments.Top;
         position.DistanceFromEdge = new(3.6f, 0.1f, 0);
         position.AdjustPosition();
         __instance.text.text += "\n<color=#ff6700FF>MCI v" + MCIPlugin.VersionString + "</color>";
@@ -24,9 +25,9 @@ public static class PingTracker_Update
             __instance.text.text += (SubmergedCompatibility.Loaded && GameOptionsManager.Instance.currentNormalGameOptions.MapId == 5) ? " <color=#00ccccFF>[Submerged]</color>" : " ";
         }
 
-        if (UpdateChecker.needsUpdate)
+        if (UpdateChecker.NeedsUpdate)
             __instance.text.text += " - <color=#ff0000FF>UPDATE AVAILABLE</color>";
 
-        __instance.text.text += "\n    by MyDragonBreath, whichTwix, AlchlcSystm";
+        __instance.text.text += "\n<size=2>    github.com/MyDragonBreath/AmongUs.MultiClientInstancing</size>";
     }
 }
